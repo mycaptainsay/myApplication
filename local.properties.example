@@ -1,0 +1,3 @@
+## Copy this file to local.properties and fill in your values.
+sdk.dir=YOUR_ANDROID_SDK_PATH
+pexels.api.key=YOUR_PEXELS_API_KEY

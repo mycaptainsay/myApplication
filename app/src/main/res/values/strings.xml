@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Image Gallery</string>
+    <string name="search_hint">Search photos (e.g., flowers, cat, mountain)</string>
+    <string name="photographer_by">By %s</string>
+    <string name="photo_size">%d × %d</string>
+    <string name="no_network">No network connection</string>
+    <string name="loading_failed">Loading failed: %s</string>
+    <string name="no_photos">No photos found</string>
+    <string name="photo_details">Photo Details</string>
+    <string name="label_photographer">Photographer</string>
+    <string name="label_size">Size</string>
+    <string name="label_description">Description</string>
+    <string name="label_url">URL</string>
+    <string name="label_avg_color">Average Color</string>
+    <string name="label_photo_id">Photo ID</string>
+</resources>
