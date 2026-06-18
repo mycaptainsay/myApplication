@@ -15,6 +15,7 @@
 local.properties
 .kotlin/
 
-# personal docs
+# 个人材料，不上传
 study.md
 汇报材料.md
+.trae/
