@@ -1,4 +1,4 @@
-package com.example.myapplication.viewmodel
+﻿package com.example.myapplication.viewmodel
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -6,11 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.constants.ApiConstants
 import com.example.myapplication.model.Photo
-import com.example.myapplication.model.Result
 import com.example.myapplication.repository.PhotoRepository
 import kotlinx.coroutines.launch
 
 class PhotoViewModel(private val repository: PhotoRepository) : ViewModel() {
+
     private val _photos = MutableLiveData<MutableList<Photo>>(mutableListOf())
     val photos: LiveData<MutableList<Photo>> = _photos
 
@@ -26,30 +26,30 @@ class PhotoViewModel(private val repository: PhotoRepository) : ViewModel() {
     private var currentPage = ApiConstants.FIRST_PAGE
     private var hasMoreData = true
     private var currentQuery: String? = null
-    private var isNewSearch = false
+    private var replaceList = false
 
     fun fetchPhotos(isRefresh: Boolean = false) {
         if (isRefresh) {
-            isNewSearch = false
             currentQuery = null
         }
-        internalFetchPhotos(isRefresh, currentQuery)
+        loadPhotos(isRefresh, currentQuery)
     }
 
     fun searchPhotos(query: String, isRefresh: Boolean = false) {
         if (currentQuery != query || isRefresh) {
             currentQuery = query
-            isNewSearch = true
+            replaceList = true
         }
-        internalFetchPhotos(isRefresh, query)
+        loadPhotos(isRefresh, query)
     }
 
-    private fun internalFetchPhotos(isRefresh: Boolean, query: String?) {
+    private fun loadPhotos(isRefresh: Boolean, query: String?) {
         if (_isLoading.value == true) return
+
         if (isRefresh) {
             currentPage = ApiConstants.FIRST_PAGE
             hasMoreData = true
-            isNewSearch = true
+            replaceList = true
         }
         if (!hasMoreData && !isRefresh) return
 
@@ -60,41 +60,39 @@ class PhotoViewModel(private val repository: PhotoRepository) : ViewModel() {
         }
 
         viewModelScope.launch {
-            val result = if (query.isNullOrEmpty()) {
-                repository.getCuratedPhotos(currentPage)
-            } else {
-                repository.searchPhotos(query, currentPage)
-            }
+            try {
+                val response = if (query.isNullOrEmpty()) {
+                    repository.getCuratedPhotos(currentPage, forceNetwork = isRefresh)
+                } else {
+                    repository.searchPhotos(query, currentPage, forceNetwork = isRefresh)
+                }
 
-            when (result) {
-                is Result.Loading -> {
-                    
-                }
-                is Result.Success -> {
-                    val newPhotos = result.data.photos
-                    if (newPhotos.isEmpty()) {
-                        hasMoreData = false
+                val newPhotos = response.photos
+                if (newPhotos.isEmpty()) {
+                    hasMoreData = false
+                } else {
+                    val list = if (replaceList) {
+                        mutableListOf()
                     } else {
-                        val currentList = if (isNewSearch) {
-                            mutableListOf()
-                        } else {
-                            _photos.value ?: mutableListOf()
-                        }
-                        currentList.addAll(newPhotos)
-                        _photos.value = currentList
-                        currentPage++
-                        isNewSearch = false
-                        hasMoreData = newPhotos.size >= ApiConstants.DEFAULT_PER_PAGE
+                        _photos.value ?: mutableListOf()
                     }
+                    list.addAll(newPhotos)
+                    _photos.value = list
+                    currentPage++
+                    replaceList = false
+                    hasMoreData = newPhotos.size >= ApiConstants.DEFAULT_PER_PAGE
                 }
-                is Result.Error -> {
-                    _error.value = result.message
-                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _error.value = e.message ?: "加载失败"
+            } finally {
+                _isLoading.value = false
+                _isLoadingMore.value = false
             }
-            _isLoading.value = false
-            _isLoadingMore.value = false
         }
     }
 
-    fun canLoadMore(): Boolean = hasMoreData && _isLoading.value != true && _isLoadingMore.value != true
+    fun canLoadMore(): Boolean {
+        return hasMoreData && _isLoading.value != true && _isLoadingMore.value != true
+    }
 }

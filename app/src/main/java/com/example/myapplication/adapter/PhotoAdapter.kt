@@ -1,15 +1,11 @@
-package com.example.myapplication.adapter
+﻿package com.example.myapplication.adapter
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.TextView
-import androidx.recyclerview.widget.AsyncListDiffer
-import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.example.myapplication.R
 import com.example.myapplication.constants.AppConstants
 import com.example.myapplication.databinding.ItemPhotoBinding
@@ -19,34 +15,31 @@ class PhotoAdapter(
     private val onItemClick: (Photo, ImageView) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    private var isLoadingAdded = false
+    private val photos = mutableListOf<Photo>()
+    private var showLoading = false
 
-    private val diffCallback = object : DiffUtil.ItemCallback<Photo>() {
-        override fun areItemsTheSame(oldItem: Photo, newItem: Photo): Boolean {
-            return oldItem.id == newItem.id
-        }
-
-        override fun areContentsTheSame(oldItem: Photo, newItem: Photo): Boolean {
-            return oldItem == newItem
-        }
-    }
-
-    private val differ = AsyncListDiffer(this, diffCallback)
-
-    fun submitList(photos: List<Photo>?) {
-        differ.submitList(photos?.toList())
+    fun updateList(list: List<Photo>) {
+        photos.clear()
+        photos.addAll(list)
+        notifyDataSetChanged()
     }
 
     fun addLoadingFooter() {
-        isLoadingAdded = true
+        if (!showLoading) {
+            showLoading = true
+            notifyItemInserted(photos.size)
+        }
     }
 
     fun removeLoadingFooter() {
-        isLoadingAdded = false
+        if (showLoading) {
+            showLoading = false
+            notifyItemRemoved(photos.size)
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
-        return if (isLoadingAdded && position == differ.currentList.size) {
+        return if (showLoading && position == photos.size) {
             AppConstants.VIEW_TYPE_LOADING
         } else {
             AppConstants.VIEW_TYPE_ITEM
@@ -54,49 +47,38 @@ class PhotoAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        return if (viewType == AppConstants.VIEW_TYPE_LOADING) {
+        if (viewType == AppConstants.VIEW_TYPE_LOADING) {
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_loading, parent, false)
-            LoadingViewHolder(view)
-        } else {
-            val binding = ItemPhotoBinding.inflate(
-                LayoutInflater.from(parent.context),
-                parent,
-                false
-            )
-            PhotoViewHolder(binding, onItemClick)
+            return LoadingViewHolder(view)
         }
+        val binding = ItemPhotoBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return PhotoViewHolder(binding, onItemClick)
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (holder is PhotoViewHolder) {
-            holder.bind(differ.currentList[position])
+            holder.bind(photos[position])
         }
     }
 
     override fun getItemCount(): Int {
-        return differ.currentList.size + if (isLoadingAdded) 1 else 0
+        return photos.size + if (showLoading) 1 else 0
     }
 
-    inner class PhotoViewHolder(
+    class PhotoViewHolder(
         private val binding: ItemPhotoBinding,
         private val onItemClick: (Photo, ImageView) -> Unit
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(photo: Photo) {
-            val aspectRatio = photo.width.toDouble() / photo.height.toDouble()
-
             Glide.with(binding.ivPhoto.context)
                 .load(photo.src.medium)
-                .thumbnail(
-                    Glide.with(binding.ivPhoto.context)
-                        .load(photo.src.small)
-                )
-                .transition(DrawableTransitionOptions.withCrossFade(300))
+                .thumbnail(Glide.with(binding.ivPhoto.context).load(photo.src.small))
                 .into(binding.ivPhoto)
 
             binding.tvPhotographer.text = photo.photographer
-            binding.tvSize.text = "${photo.width} × ${photo.height}"
+            binding.tvSize.text = "${photo.width} x ${photo.height}"
             binding.tvAlt.text = photo.alt ?: "Photo #${photo.id}"
 
             binding.root.setOnClickListener {
@@ -105,5 +87,5 @@ class PhotoAdapter(
         }
     }
 
-    inner class LoadingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
+    class LoadingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
 }

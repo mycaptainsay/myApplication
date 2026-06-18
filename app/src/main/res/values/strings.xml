@@ -13,4 +13,6 @@
     <string name="label_url">URL</string>
     <string name="label_avg_color">Average Color</string>
     <string name="label_photo_id">Photo ID</string>
+    <string name="http_cache_hint_api">已使用 HTTP 缓存（API 数据）</string>
+    <string name="http_cache_hint_image">已使用 HTTP 缓存（图片 · %1$s）</string>
 </resources>

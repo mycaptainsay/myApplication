@@ -1,9 +1,8 @@
-package com.example.myapplication.ui.home
+﻿package com.example.myapplication.ui.home
 
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
@@ -15,9 +14,10 @@ import com.example.myapplication.adapter.PhotoAdapter
 import com.example.myapplication.constants.ApiConstants
 import com.example.myapplication.constants.AppConstants
 import com.example.myapplication.databinding.ActivityHomeBinding
-import com.example.myapplication.model.Photo
 import com.example.myapplication.ui.detail.DetailActivity
 import com.example.myapplication.utils.EndlessScrollListener
+import com.example.myapplication.utils.HttpCacheNotifier
+import com.example.myapplication.utils.HttpCacheUiHelper
 import com.example.myapplication.utils.NetworkUtils
 import com.example.myapplication.utils.SpacingItemDecoration
 import com.example.myapplication.viewmodel.PhotoViewModel
@@ -36,22 +36,13 @@ class HomeActivity : AppCompatActivity() {
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        initViewModel()
-        initRecyclerView()
-        initListeners()
-        initObservers()
-
-        checkApiKeyAndLoad()
-    }
-
-    private fun initViewModel() {
         val factory = PhotoViewModelFactory(this)
         viewModel = ViewModelProvider(this, factory)[PhotoViewModel::class.java]
-    }
 
-    private fun initRecyclerView() {
-        adapter = PhotoAdapter { photo, imageView ->
-            openDetailActivity(photo)
+        adapter = PhotoAdapter { photo, _ ->
+            val intent = Intent(this, DetailActivity::class.java)
+            intent.putExtra(AppConstants.INTENT_EXTRA_PHOTO, photo)
+            startActivity(intent)
         }
 
         val layoutManager = StaggeredGridLayoutManager(
@@ -82,9 +73,7 @@ class HomeActivity : AppCompatActivity() {
             }
         }
         binding.recyclerView.addOnScrollListener(scrollListener)
-    }
 
-    private fun initListeners() {
         binding.swipeRefreshLayout.setOnRefreshListener {
             scrollListener.resetState()
             if (!currentQuery.isNullOrEmpty()) {
@@ -96,7 +85,7 @@ class HomeActivity : AppCompatActivity() {
 
         binding.searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
-                query?.let { performSearch(it) }
+                query?.let { doSearch(it) }
                 return true
             }
 
@@ -109,12 +98,10 @@ class HomeActivity : AppCompatActivity() {
                 return false
             }
         })
-    }
 
-    private fun initObservers() {
         viewModel.photos.observe(this) { photos ->
             adapter.removeLoadingFooter()
-            adapter.submitList(photos)
+            adapter.updateList(photos)
             binding.tvEmpty.visibility = if (photos.isEmpty()) View.VISIBLE else View.GONE
         }
 
@@ -131,34 +118,19 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
-        viewModel.error.observe(this) { errorMessage ->
-            errorMessage?.let {
-                val formattedMessage = getString(R.string.loading_failed, it)
-                Toast.makeText(this, formattedMessage, Toast.LENGTH_LONG).show()
+        viewModel.error.observe(this) { msg ->
+            msg?.let {
+                Toast.makeText(this, getString(R.string.loading_failed, it), Toast.LENGTH_LONG).show()
             }
         }
-    }
 
-    private fun performSearch(query: String) {
-        if (!NetworkUtils.isNetworkAvailable(this)) {
-            Toast.makeText(this, R.string.no_network, Toast.LENGTH_SHORT).show()
-            return
+        HttpCacheNotifier.setListener {
+            HttpCacheUiHelper.showApiCacheHint(this)
         }
-        currentQuery = query
-        scrollListener.resetState()
-        viewModel.searchPhotos(query, isRefresh = true)
-        binding.searchView.clearFocus()
-    }
 
-    private fun checkApiKeyAndLoad() {
         if (ApiConstants.API_KEY.isBlank()) {
-            Toast.makeText(
-                this,
-                "请在 local.properties 中配置 pexels.api.key",
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(this, "请在 local.properties 中配置 pexels.api.key", Toast.LENGTH_LONG).show()
         }
-
         if (!NetworkUtils.isNetworkAvailable(this)) {
             Toast.makeText(this, R.string.no_network, Toast.LENGTH_SHORT).show()
         }
@@ -167,9 +139,19 @@ class HomeActivity : AppCompatActivity() {
         viewModel.fetchPhotos(isRefresh = true)
     }
 
-    private fun openDetailActivity(photo: Photo) {
-        val intent = Intent(this, DetailActivity::class.java)
-        intent.putExtra(AppConstants.INTENT_EXTRA_PHOTO, photo)
-        startActivity(intent)
+    override fun onDestroy() {
+        HttpCacheNotifier.setListener(null)
+        super.onDestroy()
+    }
+
+    private fun doSearch(query: String) {
+        if (!NetworkUtils.isNetworkAvailable(this)) {
+            Toast.makeText(this, R.string.no_network, Toast.LENGTH_SHORT).show()
+            return
+        }
+        currentQuery = query
+        scrollListener.resetState()
+        viewModel.searchPhotos(query, isRefresh = true)
+        binding.searchView.clearFocus()
     }
 }

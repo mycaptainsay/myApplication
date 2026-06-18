@@ -14,3 +14,7 @@
 .cxx
 local.properties
 .kotlin/
+
+# personal docs
+study.md
+汇报材料.md

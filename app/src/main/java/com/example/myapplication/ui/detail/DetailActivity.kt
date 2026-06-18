@@ -1,14 +1,18 @@
-package com.example.myapplication.ui.detail
+﻿package com.example.myapplication.ui.detail
 
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
-import com.example.myapplication.R
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import com.example.myapplication.constants.AppConstants
 import com.example.myapplication.databinding.ActivityDetailBinding
 import com.example.myapplication.model.Photo
+import com.example.myapplication.utils.HttpCacheUiHelper
 
 class DetailActivity : AppCompatActivity() {
 
@@ -22,42 +26,57 @@ class DetailActivity : AppCompatActivity() {
 
         photo = intent.getParcelableExtra(AppConstants.INTENT_EXTRA_PHOTO)
 
-        initListeners()
-        bindPhotoData()
-    }
-
-    private fun initListeners() {
         binding.btnBack.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
+
+        showPhoto()
     }
 
-    private fun bindPhotoData() {
-        photo?.let {
+    private fun showPhoto() {
+        photo?.let { item ->
             Glide.with(this)
-                .load(it.src.large)
-                .thumbnail(
-                    Glide.with(this)
-                        .load(it.src.medium)
-                )
-                .transition(DrawableTransitionOptions.withCrossFade(300))
+                .load(item.src.large)
+                .thumbnail(Glide.with(this).load(item.src.medium))
+                .listener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(
+                        e: GlideException?,
+                        model: Any?,
+                        target: Target<Drawable>,
+                        isFirstResource: Boolean
+                    ): Boolean = false
+
+                    override fun onResourceReady(
+                        resource: Drawable,
+                        model: Any,
+                        target: Target<Drawable>?,
+                        dataSource: DataSource,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        if (dataSource != DataSource.REMOTE) {
+                            HttpCacheUiHelper.showImageCacheHint(this@DetailActivity, dataSource)
+                        }
+                        return false
+                    }
+                })
                 .into(binding.ivDetailPhoto)
 
-            binding.tvDetailPhotographer.text = it.photographer
-            binding.tvDetailSize.text = "${it.width} × ${it.height}"
-            binding.tvDetailAlt.text = it.alt ?: "Photo #${it.id}"
-            binding.tvDetailUrl.text = it.src.original
-            binding.tvPhotoId.text = "#${it.id}"
+            binding.tvDetailPhotographer.text = item.photographer
+            binding.tvDetailSize.text = "${item.width} x ${item.height}"
+            binding.tvDetailAlt.text = item.alt ?: "Photo #${item.id}"
+            binding.tvDetailUrl.text = item.src.original
+            binding.tvPhotoId.text = "#${item.id}"
 
-            it.avgColor?.let { colorString ->
+            val colorText = item.avgColor
+            if (colorText != null) {
                 try {
-                    val color = Color.parseColor(colorString)
+                    val color = Color.parseColor(colorText)
                     binding.vAvgColor.setBackgroundColor(color)
-                    binding.tvAvgColor.text = colorString.uppercase()
+                    binding.tvAvgColor.text = colorText.uppercase()
                 } catch (e: Exception) {
                     binding.tvAvgColor.text = "-"
                 }
-            } ?: run {
+            } else {
                 binding.tvAvgColor.text = "-"
             }
         }
